@@ -1,2 +1,10 @@
 ---
-# tasks file for ansible_role_users
+
+- block:
+    - include_tasks: context.yml
+
+    - include_tasks: groups.yml
+    - include_tasks: users.yml
+    - include_tasks: sudoers.yml
+
+  when: want_users

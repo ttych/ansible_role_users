@@ -1,0 +1,11 @@
+---
+
+- name: groups
+  group:
+    name: "{{ group.name }}"
+    state: "{{ group.state | default('present') }}"
+    gid: "{{ group.gid | default(omit) }}"
+    system: "{{ group.system | default('no') }}"
+  loop: "{{ users_groups }}"
+  loop_control:
+    loop_var: group

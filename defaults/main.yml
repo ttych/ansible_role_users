@@ -1,2 +1,28 @@
 ---
-# defaults file for ansible_role_users
+
+want_users: yes
+
+users_groups: []
+users: []
+users_sudoers: []
+
+
+root_group: 0
+
+users_sudoers_d: /etc/sudoers.d
+users_sudoers_conf: /etc/sudoers
+
+users_zfs_try: yes
+users_zfs_dataset_properties:
+  setuid: off
+  compression: "lz4"
+  sharenfs: off
+  sharesmb: off
+  atime: off
+  relatime: off
+
+users_home_default_mode: '0711'
+
+users_alt_home_base: null
+
+users_dotfiles_repository: https://github.com/ttych/dotfiles.git

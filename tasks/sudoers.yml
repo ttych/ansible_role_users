@@ -1,0 +1,10 @@
+---
+
+- template:
+    src: 'sudoers.d/{{ item }}'
+    dest: '{{ users_sudoers_d }}/{{ item }}'
+    owner: root
+    group: "{{ root_group }}"
+    mode: 0440
+    validate: 'sh -c "cat {{ users_sudoers_conf }} %s | visudo -cf-"'
+  loop: "{{ users_sudoers | default([]) }}"

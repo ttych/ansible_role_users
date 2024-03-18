@@ -1,0 +1,157 @@
+---
+
+- block:
+    - name: define user_home
+      set_fact:
+        user_home: "{{ user.home | default('/home/' + user.name) }}"
+
+    - name: define user_home_base
+      set_fact:
+        user_home_base: "{{ user_home | dirname }}"
+
+    - name: define user_home_name
+      set_fact:
+        user_home_name: "{{ user_home | basename }}"
+
+    - name: "get associated dataset for {{ user_home_base }}"
+      shell: zfs list -H "{{ user_home_base }}" | awk '{print $1}'
+      register: user_home_base_dataset
+      changed_when: no
+
+    - block:
+        - name: "create dataset for {{ user_home }}"
+          zfs:
+            name: "{{ user_home_base_dataset.stdout }}/{{ user_home_name }}"
+            state: present
+            extra_zfs_properties: "{{ users_zfs_dataset_properties }}"
+
+      when:
+        - user_home_base_dataset.rc == 0
+        - user_home_base_dataset.stdout != ""
+
+  when:
+    - users_zfs_try
+    - user.home is not defined or user.home != '/nonexistent'
+    - user.create_home is not defined  or user.create_home
+
+
+- name: "create {{ user.name }} user"
+  user:
+    name: "{{ user.name }}"
+    uid: "{{ user.uid }}"
+    comment: "{{ user.comment }}"
+    create_home: "{{ user.create_home | default(omit) }}"
+    home: "{{ user.home | default(omit) }}"
+    force: yes
+    group: "{{ user.group }}"
+    groups: "{{ user.groups | default(omit) }}"
+    shell: "{{ user.shell | default('/usr/sbin/nologin') }}"
+    state: "{{ user.state | default('present') }}"
+    password: "{{ user.password | default(omit) }}"
+    update_password: "{{ user.update_password | default(omit) }}"
+    append: "{{ user.append | default('yes') }}"
+
+
+- name: "fix {{ user.name }} homedir permissions"
+  file:
+    path: "{{ user_home }}"
+    owner: "{{ user.name }}"
+    group: "{{ user.group }}"
+    mode: "{{ user.home_mode | default(users_home_default_mode) }}"
+    #recurse: yes
+    #follow: no
+  when:
+    - user.create_home|d(true)
+    - user.home_mode is defined
+    - user_home is defined
+
+
+- name: "add authorized_key for {{ user.name }}"
+  authorized_key:
+    user: "{{ user }}"
+    key: "{{ key }}"
+  loop: "{{ user.authorized_keys | default([]) }}"
+  loop_control:
+    loop_var: key
+  when: key
+
+
+- block:
+    - name: define user_alt_home
+      set_fact:
+        user_alt_home: "{{ users_alt_home_base + user.name) }}"
+
+    - block:
+        - name: "get associated dataset for {{ user_alt_home_base }}"
+          shell: zfs list -H "{{ user_alt_home_base }}" | awk '{print $1}'
+          register: t_users_alt_home_base_dataset
+          changed_when: no
+
+        - name: "create dataset for {{ user_alt_home }}"
+          zfs:
+            name: "{{ user_home_base_dataset.stdout }}/{{ user_home_name }}"
+            state: present
+            extra_zfs_properties: "{{ users_zfs_dataset_properties }}"
+          when:
+            - t_users_alt_home_base_dataset.rc == 0
+            - t_users_alt_home_base_dataset.stdout != ""
+
+      when:
+        - users_zfs_try
+
+    - name: "create directory for {{ user_alt_home }}"
+      file:
+        path: "{{ user_alt_home }}"
+        state: directory
+      when: not users_zfs_try or t_users_alt_home_base_dataset.rc != 0 or t_users_alt_home_base_dataset.stdout == ""
+
+    - name: "set {{ user_alt_home }} alt home permissions"
+      file:
+        path: "{{ user_alt_home }}"
+        owner: "{{ user.name }}"
+        group: "{{ user.group }}"
+        mode: "{{ user.alt_home_mode | default(user.home_mode) | default(users_home_default_mode) }}"
+
+  when:
+    - users_alt_home_base
+    - user.alt_home | d(no)
+
+
+- block:
+    - name: whoami
+      shell: whoami
+      changed_when: false
+      register: t_users_whoami
+
+    - fail:
+        msg: "unable to switch to {{ user.name }}"
+      when: user.name != t_users_whoami.stdout
+
+    - name: "get homedir for {{ user.name }}"
+      shell: >
+        getent passwd {{ user.name }} | cut -d: -f6
+      changed_when: false
+      register: t_users_homedir
+
+    - block:
+        - name: "clone dotfiles repository for {{ user.name }}"
+          git:
+            repo: "{{ user.dotfiles_repository | default(users_dotfiles_repository) }}"
+            dest: "{{ t_users_homedir.stdout }}/.dotfiles"
+            version: master
+            accept_hostkey: yes
+            umask: "077"
+            force: yes
+          register: t_users_dotfiles_checkout
+
+        - name: "postinstall dotfiles for {{ user }}"
+          shell: "{{ homedir.stdout }}/.dotfiles/install.sh"
+          when: t_users_dotfiles_checkout is changed
+      when:
+        - user.dotfiles == 't_dotfiles'
+
+  become: yes
+  become_user: "{{ user.name }}"
+
+  when:
+    - user.dotfiles | default(None)
