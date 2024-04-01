@@ -2,6 +2,94 @@
 
 want_users: yes
 
+users_groups_base:
+  - { name: bind, gid: 53 }
+  - { name: admin, gid: 2001 }
+  - { name: ops, gid: 2002 }
+  - { name: service, gid: 2101 }
+  - { name: logger, gid: 2102 }
+  - { name: share, gid: 2103 }
+  - { name: documentation, gid: 2105 }
+  - { name: application, gid: 2106 }
+  - { name: lusers, gid: 3002 }
+  - { name: rusers, gid: 3003 }
+
+users_base:
+  - name: bind
+    comment: Bind
+    group: bind
+    home: /nonexistent
+    shell: /usr/sbin/nologin
+    uid: 53
+    home_mode: '0700'
+    password: '*'
+
+  - name: admin
+    comment: admin
+    group: admin
+    groups: "{{ root_group }},service"
+    shell: /bin/sh
+    uid: 2001
+    home_mode: '0700'
+    password: '*'
+    authorized_keys:
+      - "{{ admin_ssh_pub_key | default(None) }}"
+
+  - name: service
+    comment: service
+    group: service
+    groups:
+    home: /nonexistent
+    create_home: no
+    shell: /usr/sbin/nologin
+    uid: 2101
+    home_mode: '0700'
+    password: '*'
+
+  - name: logger
+    comment: logger
+    group: logger
+    groups:
+    home: /nonexistent
+    create_home: no
+    shell: /usr/sbin/nologin
+    uid: 2102
+    home_mode: '0700'
+    password: '*'
+
+  - name: share
+    comment: share
+    group: share
+    groups:
+    home: /home/share
+    create_home: no
+    shell: /bin/sh
+    uid: 2103
+    home_mode: '0700'
+    password: '*'
+
+  - name: documentation
+    comment: documentation
+    group: documentation
+    groups:
+    home: /nonexistent
+    create_home: no
+    shell: /usr/sbin/nologin
+    uid: 2105
+    home_mode: '0700'
+    password: '*'
+
+  - name: application
+    comment: application
+    group: application
+    groups:
+    home: /nonexistent
+    create_home: no
+    shell: /usr/sbin/nologin
+    uid: 2106
+    home_mode: '0700'
+    password: '*'
+
 users_groups: []
 users: []
 users_sudoers: []

@@ -68,7 +68,7 @@
 
 - name: "add authorized_key for {{ user.name }}"
   authorized_key:
-    user: "{{ user }}"
+    user: "{{ user.name }}"
     key: "{{ key }}"
   loop: "{{ user.authorized_keys | default([]) }}"
   loop_control:
@@ -82,14 +82,14 @@
         user_alt_home: "{{ users_alt_home_base + user.name) }}"
 
     - block:
-        - name: "get associated dataset for {{ user_alt_home_base }}"
-          shell: zfs list -H "{{ user_alt_home_base }}" | awk '{print $1}'
+        - name: "get associated dataset for {{ users_alt_home_base }}"
+          shell: zfs list -H "{{ users_alt_home_base }}" | awk '{print $1}'
           register: t_users_alt_home_base_dataset
           changed_when: no
 
         - name: "create dataset for {{ user_alt_home }}"
           zfs:
-            name: "{{ user_home_base_dataset.stdout }}/{{ user_home_name }}"
+            name: "{{ t_users_alt_home_base_dataset.stdout }}/{{ user.name }}"
             state: present
             extra_zfs_properties: "{{ users_zfs_dataset_properties }}"
           when:
@@ -144,9 +144,10 @@
             force: yes
           register: t_users_dotfiles_checkout
 
-        - name: "postinstall dotfiles for {{ user }}"
-          shell: "{{ homedir.stdout }}/.dotfiles/install.sh"
-          when: t_users_dotfiles_checkout is changed
+        # - name: "postinstall dotfiles for {{ user }}"
+        #   shell: "{{ t_users_homedir.stdout }}/.dotfiles/install.sh"
+        #   when: t_users_dotfiles_checkout is changed
+
       when:
         - user.dotfiles == 't_dotfiles'
 
