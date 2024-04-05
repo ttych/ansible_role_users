@@ -34,6 +34,7 @@ users_base:
     password: '*'
     authorized_keys:
       - "{{ admin_ssh_pub_key | default(None) }}"
+    append: yes
 
   - name: service
     comment: service
